@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!--<script src="node_modules/tmi.js/index.js"></script>-->
+		<script src="https://cdn.polyfill.io/v2/polyfill.min.js"></script>
+		<script src="http://cdn.tmijs.org/js/latest/1.x/tmi.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		<script src="howler.js-master/src/howler.core.js"></script>
+		<script src="howler.js-master/src/plugins/howler.spatial.js"></script>
+		<script src= "http://player.twitch.tv/js/embed/v1.js"></script>
+		<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+
+		
+	</head>
+	
+	<body>
+
+	<h1 id="sent">Current Sentiment</h1>
+	<h2 id="num">10</h2>
+	<div id = "search">
+	<input id = "channel" type ="text"></input>
+	<button id = "butt" type = "button">Search</button>
+	</div>
+	<script>
+		var channel = "voyboy";
+	</script>  
+
+
+
+	<div id="twitch-player"></div>
+
+	<style>
+		h1{
+			font-family: 'Roboto', sans-serif;
+			font-size: 82px;
+			text-align: center;
+		}
+		h2{
+			font-family: 'Roboto', sans-serif;
+			font-size: 64px;
+			text-align: center;
+		}
+
+		body{
+			background-color: #81CFE0;
+		}
+
+		#search{
+			text-align: center;
+		}
+
+		#twitch-player{
+			text-align: center;
+		}
+	</style> 
+
+<script type="text/javascript">
+
+    var options = {
+        width: 854,
+        height: 480,
+        channel: channel, 
+        //video: "{VIDEO_ID}"       
+    };
+    var player = new Twitch.Player("twitch-player", options);
+    player.setVolume(0.0);
+    player.addEventListener(Twitch.Player.PAUSE, () => { console.log('Player is paused!'); });
+</script>
+
+	<script>
+
+
+
+	function getRandomInt(min,max){
+		return Math.floor(Math.random() * (max - min)) + min;
+	}
+	//var tmi = require("tmi.js");
+	var options = {
+		channels: ['#'+channel]
+	}
+
+	var client = new tmi.client(options);
+	client.connect();
+
+
+	averageSentiment = 0;
+
+	$("#butt").click(function(){
+		newChannel = $("#channel").val();
+		console.log(newChannel);
+		client.part("#"+channel);
+		client.join("#"+newChannel);
+		player.setChannel(newChannel);
+		averageSentiment = 0;
+		//console.log(client.getChannels());
+		//console.log(client);
+		//client.channels = ["#doublelift"]
+	});
+
+	var synthSounds = [];
+	for(i=0;i<=36;i++){
+		synthSounds[i] = new Howl({
+			src: ["bells/bells"+i+".mp3"]
+		});
+	}
+
+	var bassSounds = [];
+	for(i=0;i<=12;i++){
+		bassSounds[i] = new Howl({
+			src: ["bass/bass"+i+".mp3"]
+		});
+	}
+
+	var ocean = new Howl({
+		src: ["ocean.wav"],
+		autoplay: true,
+		loop:true,
+		volume: 0.1
+	});
+	//ocean.play();
+
+
+	var majorPentaPattern = [2,2,3,2,3];
+	var minorPentaPattern = [3,2,2,3,2];
+
+	function createPenta(type){
+		var scale = [];
+		var i = 0;
+		var s = 0;
+		var n = 0;
+		while(i<=36){
+			scale[s] = i;
+			n=n%5;
+			i+=type[n];
+			s++;
+			n++;
+		}
+		return scale;
+	}
+
+	majorPentaScale = createPenta(majorPentaPattern);
+	minorPentaScale = createPenta(minorPentaPattern);
+
+	currentScale = majorPentaScale;
+	
+	var numMessages = 0;
+	
+	var meme = {message: "This is awesome!"};
+
+	var lastSentiments = [];
+	var totalLast = 100;
+
+	for(var i = 0; i < totalLast; i++){
+		lastSentiments[i] = 0;
+	}
+
+	function calculateAverageSentiment(){
+		sum = 0;
+		for(var i = 0; i < totalLast; i++){
+			sum+=lastSentiments[i];
+		}
+		return sum/totalLast;
+	}
+	
+	//stereo(1);	
+
+	var currentSentimentSpot = 0;
+    function calculateSentiment(mess){
+    	$.ajax({
+    		type: "post",
+    		url: "http://127.0.0.1:5000/",
+    		data: {message: mess}
+    	}).done(function(data){
+    		//console.log(data.sentiment);
+    		lastSentiments[currentSentimentSpot] = data.sentiment;
+    		currentSentimentSpot++;
+    		currentSentimentSpot = currentSentimentSpot%totalLast;
+    		//console.log(averageSentiment);
+    		averageSentiment = calculateAverageSentiment();
+    		//averageSentiment = -10;
+    		$("#num").text(averageSentiment);
+    	});
+    }
+
+    function playNoteFromScale(sound,scale,note,pan){
+    	clip = sound[scale[note]]
+    	random = (Math.random()*1)-0.5;
+
+    	if(pan){
+    		clip.stereo(random);
+    	}
+    	//clip.volume(0.1);
+    	//clip.rate(0.5);
+    	clip.play();
+    }
+
+	client.on("chat", function (channel, user, message, self) {
+
+		calculateSentiment(message);
+		console.log(message);
+		if(averageSentiment >= 0){
+			currentScale = majorPentaScale;
+		}else{
+			currentScale = minorPentaScale;
+		}
+
+		playNoteFromScale(synthSounds,currentScale,getRandomInt(0,currentScale.length),true);
+
+    	//synthSounds[scale[getRandomInt(0,scale.length)]].play();
+    	
+    	if(numMessages%20==0){
+    		playNoteFromScale(bassSounds,currentScale,getRandomInt(0,currentScale.length)%5,false);
+    		//bassSounds[scale[getRandomInt(0,scale.length)%5]].play();
+    	}
+    	numMessages+=1;
+	});
+	</script>
+	</body>
+</html>
