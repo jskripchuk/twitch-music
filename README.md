@@ -6,7 +6,7 @@ http://jamesskripchuk.com/twitch-music/
 # How to use!
 Make sure to input a channel name at the top and press enter!
 
-(It's set to a default channel which is probably not streaming so I'd recommend picking [one of the popular ones])
+(It's set to a default channel which is probably not streaming so I'd recommend picking [one of the popular ones](https://www.twitch.tv/directory/all)
 
 For example, let's say you have the channel https://www.twitch.tv/saltybet
 
